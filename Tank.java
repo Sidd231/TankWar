@@ -3,115 +3,180 @@ import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Random;
 import javax.swing.*;
 
 public class Tank extends JPanel implements ActionListener, KeyListener {
 
-    // =================================================================================
-    // --- NEW: Class Hierarchy for Game Objects ---
-    // =================================================================================
-
-    /**
-     * A base class for any object that appears in the game.
-     * Contains common properties like position and image.
-     */
+    // --- Class Hierarchy ---
     class GameObject {
         int x, y, width, height;
         Image image;
-
-        GameObject(Image image, int x, int y, int width, int height) {
-            this.image = image;
-            this.x = x;
-            this.y = y;
-            this.width = width;
-            this.height = height;
-        }
-
-        public Rectangle getBounds() {
-            return new Rectangle(x, y, width, height);
-        }
+        GameObject(Image i, int x, int y, int w, int h) { image = i; this.x = x; this.y = y; width = w; height = h; }
+        public Rectangle getBounds() { return new Rectangle(x, y, width, height); }
     }
 
-    /**
-     * A template for any tank (Player or Bot). Inherits from GameObject.
-     * Adds shared tank properties like speed, direction, and the ability to shoot.
-     */
     class TankObject extends GameObject {
         int speed;
-        int velocityX = 0;
-        int velocityY = 0;
-        String direction = "UP"; // To know which way the missile should fire
+        int velocityX = 0, velocityY = 0;
+        String direction = "UP";
+        Image imgUp, imgDown, imgLeft, imgRight;
 
-        TankObject(Image image, int x, int y, int width, int height, int speed) {
-            super(image, x, y, width, height);
-            this.speed = speed;
+        TankObject(Image u, Image d, Image l, Image r, int x, int y, int w, int h, int s) {
+            super(u, x, y, w, h);
+            imgUp = u; imgDown = d; imgLeft = l; imgRight = r;
+            speed = s;
         }
-    }
 
-    /**
-     * The Player's tank. Inherits from TankObject.
-     */
-    class Player extends TankObject {
-        Player(Image image, int x, int y, int width, int height, int speed) {
-            super(image, x, y, width, height, speed);
-        }
-    }
-
-    /**
-     * A Bot tank. Inherits from TankObject. Can have different speeds.
-     */
-    class Bot extends TankObject {
-        Bot(Image image, int x, int y, int width, int height, int speed) {
-            super(image, x, y, width, height, speed);
-        }
-    }
-
-    /**
-     * A Missile. Inherits from GameObject.
-     * Has its own movement logic.
-     */
-    class Missile extends GameObject {
-        int velocityX = 0;
-        int velocityY = 0;
-
-        Missile(Image image, int x, int y, int width, int height, String direction) {
-            super(image, x, y, width, height);
-            int missileSpeed = 5;
+        public void setDirection(String newDir) {
+            direction = newDir;
             switch (direction) {
+                case "UP": image = imgUp; break;
+                case "DOWN": image = imgDown; break;
+                case "LEFT": image = imgLeft; break;
+                case "RIGHT": image = imgRight; break;
+            }
+        }
+    }
+
+    class Player extends TankObject {
+        Player(Image u, Image d, Image l, Image r, int x, int y, int w, int h, int s) {
+            super(u, d, l, r, x, y, w, h, s);
+        }
+    }
+
+    class Bot extends TankObject {
+        private int moveTimer = 0, shootCooldown = 100;
+        private Random random = new Random();
+
+        Bot(Image u, Image d, Image l, Image r, int x, int y, int w, int h, int s) {
+            super(u, d, l, r, x, y, w, h, s);
+            changeDirection();
+        }
+
+        public void update() {
+            moveTimer--;
+            if (moveTimer <= 0) changeDirection();
+            shootCooldown--;
+            if (shootCooldown <= 0 && hasLineOfSight()) shoot();
+            
+            int nextX = x + velocityX, nextY = y + velocityY;
+            if (!checkWallCollision(new Rectangle(nextX, nextY, width, height))) {
+                x = nextX; y = nextY;
+            } else {
+                changeDirection();
+            }
+        }
+
+        private boolean hasLineOfSight() {
+            if (player == null) return false;
+            Rectangle sightLine = new Rectangle();
+            boolean aligned = false;
+            if (Math.abs(player.x - x) < tileSize) {
+                aligned = true;
+                if (player.y < y) { if (!direction.equals("UP")) return false; sightLine.setBounds(x, player.y, width, y - player.y); } 
+                else { if (!direction.equals("DOWN")) return false; sightLine.setBounds(x, y, width, player.y - y); }
+            } else if (Math.abs(player.y - y) < tileSize) {
+                aligned = true;
+                if (player.x < x) { if (!direction.equals("LEFT")) return false; sightLine.setBounds(player.x, y, x - player.x, height); } 
+                else { if (!direction.equals("RIGHT")) return false; sightLine.setBounds(x, y, player.x - x, height); }
+            }
+            if (!aligned) return false;
+            for (GameObject wall : brick) if (sightLine.intersects(wall.getBounds())) return false;
+            for (GameObject wall : steel) if (sightLine.intersects(wall.getBounds())) return false;
+            return true;
+        }
+
+        public void shoot() {
+            missiles.add(new Missile(missile_img, x + tileSize / 2 - 4, y + tileSize / 2 - 4, 8, 8, direction, false));
+            shootCooldown = 100 + random.nextInt(100);
+        }
+
+        private void changeDirection() {
+            int dir = random.nextInt(5);
+            String newDir = direction;
+            switch (dir) {
+                case 0: velocityY = -speed; velocityX = 0; newDir = "UP"; break;
+                case 1: velocityY = speed; velocityX = 0; newDir = "DOWN"; break;
+                case 2: velocityX = -speed; velocityY = 0; newDir = "LEFT"; break;
+                case 3: velocityX = speed; velocityY = 0; newDir = "RIGHT"; break;
+                case 4: velocityX = 0; velocityY = 0; break;
+            }
+            setDirection(newDir);
+            moveTimer = 50 + random.nextInt(100);
+        }
+        
+        public void takeHit() {
+            botsToRemove.add(this);
+        }
+    }
+    
+    class BotFast extends Bot {
+        BotFast(Image u, Image d, Image l, Image r, int x, int y, int w, int h, int s) {
+            super(u, d, l, r, x, y, w, h, s);
+        }
+    }
+
+    class BotHeavy extends Bot {
+        int health = 3;
+        BotHeavy(Image u, Image d, Image l, Image r, int x, int y, int w, int h, int s) {
+            super(u, d, l, r, x, y, w, h, s);
+        }
+
+        @Override
+        public void takeHit() {
+            this.health--;
+            if (this.health <= 0) {
+                botsToRemove.add(this);
+            }
+        }
+    }
+
+    class Missile extends GameObject {
+        int velocityX = 0, velocityY = 0;
+        boolean fromPlayer;
+        Missile(Image i, int x, int y, int w, int h, String dir, boolean p) {
+            super(i, x, y, w, h);
+            fromPlayer = p;
+            int missileSpeed = 5;
+            switch (dir) {
                 case "UP": velocityY = -missileSpeed; break;
                 case "DOWN": velocityY = missileSpeed; break;
                 case "LEFT": velocityX = -missileSpeed; break;
                 case "RIGHT": velocityX = missileSpeed; break;
             }
         }
-
-        public void move() {
-            x += velocityX;
-            y += velocityY;
-        }
+        public void move() { x += velocityX; y += velocityY; }
     }
 
-    // =================================================================================
     // --- Panel Properties ---
-    // =================================================================================
-
     private int tileSize = 32;
-    private int boardWidth = 15 * tileSize;
-    private int boardHeight = 15 * tileSize;
-
-    private Image player_tank_img, brick_wall_img, bot_tank_img, steel_wall_img, missile_img;
+    private int boardWidth = 15 * tileSize, boardHeight = 15 * tileSize;
+    private Image player_up, player_down, player_left, player_right;
+    private Image bot_up, bot_down, bot_left, bot_right;
+    private Image bot_fast_up, bot_fast_down, bot_fast_left, bot_fast_right;
+    private Image bot_heavy_up, bot_heavy_down, bot_heavy_left, bot_heavy_right;
+    private Image brick_img, steel_img, missile_img;
 
     private LevelData map;
     private int currentLevel = 1;
 
-    // --- NEW: Using specific collections for objects ---
-    HashSet<GameObject> brick;
-    HashSet<GameObject> steel;
+    HashSet<GameObject> brick, steel;
     HashSet<Bot> bots;
     ArrayList<Missile> missiles;
     Player player;
+    
+    ArrayList<Missile> missilesToRemove;
+    ArrayList<GameObject> bricksToRemove;
+    ArrayList<Bot> botsToRemove;
 
     Timer gameLoop;
+    boolean gameOver = false, gameWon = false;
+    
+    // --- NEW: Game State Variables ---
+    private UIPanel uiPanel;
+    private int playerLives = 3;
+    private boolean isPaused = false;
 
     Tank() {
         setPreferredSize(new Dimension(boardWidth, boardHeight));
@@ -120,185 +185,16 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
         addKeyListener(this);
 
         try {
-            brick_wall_img = new ImageIcon(getClass().getResource("/brick.jpg")).getImage();
-            steel_wall_img = new ImageIcon(getClass().getResource("/image_1755482051164.jpg")).getImage();
-            bot_tank_img = new ImageIcon(getClass().getResource("/btank.png")).getImage();
-            player_tank_img = new ImageIcon(getClass().getResource("/ptank.png")).getImage();
-            // A simple image for the missile, you can create your own
-            missile_img = new ImageIcon(getClass().getResource("/missile.png")).getImage(); 
-            missile_right_img = new
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        map = new LevelData();
-        loadLevel(currentLevel);
-
-        gameLoop = new Timer(10, this);
-        gameLoop.start();
-    }
-
-    public void loadLevel(int level) {
-        String[] currentMapData = map.getMap(level);
-        
-        brick = new HashSet<>();
-        steel = new HashSet<>();
-        bots = new HashSet<>();
-        missiles = new ArrayList<>();
-        player = null;
-
-        for (int r = 0; r < currentMapData.length; r++) {
-            String line = currentMapData[r];
-            for (int c = 0; c < line.length(); c++) {
-                char tileType = line.charAt(c);
-                int x = c * tileSize;
-                int y = r * tileSize;
-
-                switch (tileType) {
-                    case '1':
-                        brick.add(new GameObject(brick_wall_img, x, y, tileSize, tileSize));
-                        break;
-                    case '5':
-                        // This bot has a speed of 1
-                        bots.add(new Bot(bot_tank_img, x, y, tileSize, tileSize, 1));
-                        break;
-                    case '7':
-                        // The player has a speed of 2
-                        player = new Player(player_tank_img, x, y, tileSize, tileSize, 2);
-                        break;
-                }
-            }
-        }
-    }
-    
-    // --- Game Logic ---
-    public void gameUpdate() {
-        if (player != null) playerMove();
-        moveMissiles();
-        checkCollisions();
-    }
-
-    public void playerMove() {
-        int nextX = player.x + player.velocityX;
-        int nextY = player.y + player.velocityY;
-        Rectangle nextPos = new Rectangle(nextX, nextY, player.width, player.height);
-        if (!checkWallCollision(nextPos)) {
-            player.x = nextX;
-            player.y = nextY;
-        }
-    }
-
-    public void moveMissiles() {
-        for (Missile m : missiles) {
-            m.move();
-        }
-    }
-
-    public void checkCollisions() {
-        // Use an Iterator to safely remove items from a list while looping
-        Iterator<Missile> missileIter = missiles.iterator();
-        while (missileIter.hasNext()) {
-            Missile m = missileIter.next();
-            Rectangle missileBounds = m.getBounds();
-            boolean missileHit = false;
-
-            // Check collision with brick walls
-            Iterator<GameObject> brickIter = brick.iterator();
-            while (brickIter.hasNext()) {
-                GameObject b = brickIter.next();
-                if (missileBounds.intersects(b.getBounds())) {
-                    brickIter.remove(); // Destroy the brick
-                    missileHit = true;
-                    break; 
-                }
-            }
-
-            if (missileHit) {
-                missileIter.remove(); // Destroy the missile
-                continue; // Move to the next missile
-            }
-            
-            // Check collision with steel walls (missile destroyed, wall is not)
-            for (GameObject s : steel) {
-                if (missileBounds.intersects(s.getBounds())) {
-                    missileHit = true;
-                    break;
-                }
-            }
-
-            if (missileHit) {
-                missileIter.remove();
-            }
-        }
-    }
-
-    public boolean checkWallCollision(Rectangle nextPos) {
-        for (GameObject b : brick) if (nextPos.intersects(b.getBounds())) return true;
-        for (GameObject s : steel) if (nextPos.intersects(s.getBounds())) return true;
-        if (nextPos.x < 0 || nextPos.x + nextPos.width > boardWidth ||
-            nextPos.y < 0 || nextPos.y + nextPos.height > boardHeight) return true;
-        return false;
-    }
-    
-    public void shoot() {
-        if (player == null) return;
-        // Create a new missile at the player's center, moving in the player's current direction
-        int missileX = player.x + tileSize / 2 - 4; // Center the missile
-        int missileY = player.y + tileSize / 2 - 4;
-        missiles.add(new Missile(missile_img, missileX, missileY, 8, 8, player.direction));
-    }
-
-    // --- Drawing ---
-    public void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        draw(g);
-    }
-
-    public void draw(Graphics g) {
-        if (player != null) g.drawImage(player.image, player.x, player.y, player.width, player.height, this);
-        for (GameObject b : brick) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
-        for (Bot b : bots) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
-        for (GameObject s : steel) g.drawImage(s.image, s.x, s.y, s.width, s.height, this);
-        for (Missile m : missiles) g.drawImage(m.image, m.x, m.y, m.width, m.height, this);
-    }
-
-    // --- Event Listeners ---
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        gameUpdate();
-        repaint();
-    }
-
-    @Override
-    public void keyPressed(KeyEvent e) {
-        if (player == null) return;
-        int key = e.getKeyCode();
-
-        if (key == KeyEvent.VK_UP) {
-            player.velocityY = -player.speed;
-            player.direction = "UP";
-        } else if (key == KeyEvent.VK_DOWN) {
-            player.velocityY = player.speed;
-            player.direction = "DOWN";
-        } else if (key == KeyEvent.VK_LEFT) {
-            player.velocityX = -player.speed;
-            player.direction = "LEFT";
-        } else if (key == KeyEvent.VK_RIGHT) {
-            player.velocityX = player.speed;
-            player.direction = "RIGHT";
-        } else if (key == KeyEvent.VK_SPACE) {
-            shoot();
-        }
-    }
-
-    @Override
-    public void keyReleased(KeyEvent e) {
-        if (player == null) return;
-        int key = e.getKeyCode();
-        if (key == KeyEvent.VK_UP || key == KeyEvent.VK_DOWN) player.velocityY = 0;
-        if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_RIGHT) player.velocityX = 0;
-    }
-
-    @Override
-    public void keyTyped(KeyEvent e) {}
-}
+            player_up = new ImageIcon("../image/ptank_up.png").getImage();
+            player_down = new ImageIcon("../image/ptank_down.png").getImage();
+            player_left = new ImageIcon("../image/ptank_left.png").getImage();
+            player_right = new ImageIcon("../image/ptank_right.png").getImage();
+            bot_up = new ImageIcon("../image/btank_up.png").getImage();
+            bot_down = new ImageIcon("../image/btank_down.png").getImage();
+            bot_left = new ImageIcon("../image/btank_left.png").getImage();
+            bot_right = new ImageIcon("../image/btank_right.png").getImage();
+            bot_fast_up = new ImageIcon("../image/btank_fast_up.png").getImage();
+            bot_fast_down = new ImageIcon("../image/btank_fast_down.png").getImage();
+            bot_fast_left = new ImageIcon("../image/btank_fast_left.png").getImage();
+            bot_fast_right = new ImageIcon("../image/btank_fast_right.png").getImage();
+            bot_heavy_up = new ImageIcon("../image/btank_heavy_up.png").getImage();
