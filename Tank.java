@@ -198,3 +198,124 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
             bot_fast_left = new ImageIcon("../image/btank_fast_left.png").getImage();
             bot_fast_right = new ImageIcon("../image/btank_fast_right.png").getImage();
             bot_heavy_up = new ImageIcon("../image/btank_heavy_up.png").getImage();
+            bot_heavy_down = new ImageIcon("../image/btank_heavy_down.png").getImage();
+            bot_heavy_left = new ImageIcon("../image/btank_heavy_left.png").getImage();
+            bot_heavy_right = new ImageIcon("../image/btank_heavy_right.png").getImage();
+            brick_img = new ImageIcon("../image/brick.jpg").getImage();
+            steel_img = new ImageIcon("../image/steel.jpg").getImage();
+            missile_img = new ImageIcon("../image/missile.png").getImage();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        map = new LevelData();
+        gameLoop = new Timer(10, this);
+        gameLoop.start();
+    }
+    
+    // --- NEW: Method to link to the UI Panel ---
+    public void setUiPanel(UIPanel ui) {
+        this.uiPanel = ui;
+        loadLevel(currentLevel); // Load the first level after the UI is set
+    }
+
+    public void loadLevel(int level) {
+        if (level > map.getTotalLevels()) {
+            gameWon = true;
+            return;
+        }
+        String[] currentMapData = map.getMap(level);
+        
+        brick = new HashSet<>(); steel = new HashSet<>();
+        bots = new HashSet<>(); missiles = new ArrayList<>();
+        player = null;
+        gameOver = false; gameWon = false;
+
+        for (int r = 0; r < currentMapData.length; r++) {
+            String line = currentMapData[r];
+            for (int c = 0; c < line.length(); c++) {
+                char tileType = line.charAt(c);
+                int x = c * tileSize, y = r * tileSize;
+                switch (tileType) {
+                    case '1': brick.add(new GameObject(brick_img, x, y, tileSize, tileSize)); break;
+                    case '9': steel.add(new GameObject(steel_img, x, y, tileSize, tileSize)); break;
+                    case '7': player = new Player(player_up, player_down, player_left, player_right, x, y, tileSize, tileSize, 2); break;
+                    case '5': bots.add(new Bot(bot_up, bot_down, bot_left, bot_right, x, y, tileSize, tileSize, 1)); break;
+                    case '6': bots.add(new BotFast(bot_fast_up, bot_fast_down, bot_fast_left, bot_fast_right, x, y, tileSize, tileSize, 3)); break;
+                    case '8': bots.add(new BotHeavy(bot_heavy_up, bot_heavy_down, bot_heavy_left, bot_heavy_right, x, y, tileSize, tileSize, 1)); break;
+                }
+            }
+        }
+        // Update UI after loading
+        if (uiPanel != null) {
+            uiPanel.setLevel(currentLevel);
+            uiPanel.setLives(playerLives);
+        }
+    }
+    
+    public void gameUpdate() {
+        if (gameOver || gameWon) return;
+        if (player != null) playerMove();
+        for (Bot bot : bots) bot.update();
+        moveMissiles();
+        checkCollisions();
+
+        if (bots.isEmpty() && player != null) {
+            currentLevel++;
+            loadLevel(currentLevel);
+        }
+    }
+
+    public void playerMove() {
+        int nextX = player.x + player.velocityX, nextY = player.y + player.velocityY;
+        if (!checkWallCollision(new Rectangle(nextX, nextY, player.width, player.height))) {
+            player.x = nextX; player.y = nextY;
+        }
+    }
+
+    public void moveMissiles() { for (Missile m : missiles) m.move(); }
+
+    public void checkCollisions() {
+        missilesToRemove = new ArrayList<>();
+        bricksToRemove = new ArrayList<>();
+        botsToRemove = new ArrayList<>();
+
+        for (Missile m : missiles) {
+            Rectangle missileBounds = m.getBounds();
+            for (GameObject b : brick) if (missileBounds.intersects(b.getBounds())) { missilesToRemove.add(m); bricksToRemove.add(b); }
+            for (GameObject s : steel) if (missileBounds.intersects(s.getBounds())) missilesToRemove.add(m);
+            
+            // --- UPDATED: Player hit logic ---
+            if (!m.fromPlayer && player != null && missileBounds.intersects(player.getBounds())) {
+                missilesToRemove.add(m);
+                playerLives--;
+                uiPanel.setLives(playerLives);
+                if (playerLives <= 0) {
+                    player = null;
+                    gameOver = true;
+                } else {
+                    // Respawn on the same level
+                    loadLevel(currentLevel);
+                }
+            }
+            if (m.fromPlayer) {
+                for (Bot b : bots) {
+                    if (missileBounds.intersects(b.getBounds())) {
+                        missilesToRemove.add(m);
+                        b.takeHit();
+                    }
+                }
+            }
+        }
+        missiles.removeAll(missilesToRemove);
+        brick.removeAll(bricksToRemove);
+        bots.removeAll(botsToRemove);
+    }
+
+    public boolean checkWallCollision(Rectangle nextPos) {
+        for (GameObject b : brick) if (nextPos.intersects(b.getBounds())) return true;
+        for (GameObject s : steel) if (nextPos.intersects(s.getBounds())) return true;
+        if (nextPos.x < 0 || nextPos.x + nextPos.width > boardWidth ||
+            nextPos.y < 0 || nextPos.y + nextPos.height > boardHeight) return true;
+        return false;
+    }
