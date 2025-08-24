@@ -319,3 +319,78 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
             nextPos.y < 0 || nextPos.y + nextPos.height > boardHeight) return true;
         return false;
     }
+    
+    public void shoot() {
+        if (player == null) return;
+        missiles.add(new Missile(missile_img, player.x + tileSize / 2 - 4, player.y + tileSize / 2 - 4, 8, 8, player.direction, true));
+    }
+
+    // --- NEW: Game Control Methods ---
+    public void togglePause() {
+        isPaused = !isPaused;
+        if (isPaused) {
+            gameLoop.stop();
+            uiPanel.setPauseButtonText("Resume");
+        } else {
+            gameLoop.start();
+            uiPanel.setPauseButtonText("Pause");
+        }
+    }
+
+    public void resetGame() {
+        currentLevel = 1;
+        playerLives = 3;
+        loadLevel(currentLevel);
+        if (isPaused) {
+            togglePause(); // Unpause the game on reset
+        }
+    }
+
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        draw(g);
+    }
+
+    public void draw(Graphics g) {
+        if (player != null) g.drawImage(player.image, player.x, player.y, player.width, player.height, this);
+        for (GameObject b : brick) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
+        for (Bot b : bots) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
+        for (GameObject s : steel) g.drawImage(s.image, s.x, s.y, s.width, s.height, this);
+        for (Missile m : missiles) g.drawImage(m.image, m.x, m.y, m.width, m.height, this);
+
+        if (gameOver) {
+            g.setColor(Color.RED); g.setFont(new Font("Arial", Font.BOLD, 50));
+            g.drawString("GAME OVER", boardWidth / 2 - 150, boardHeight / 2);
+        } else if (gameWon) {
+            g.setColor(Color.GREEN); g.setFont(new Font("Arial", Font.BOLD, 40));
+            g.drawString("YOU WIN THE GAME!", boardWidth / 2 - 200, boardHeight / 2);
+        }
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) { gameUpdate(); repaint(); }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (player == null || isPaused) return; // Don't allow input if paused
+        int key = e.getKeyCode();
+        String newDir = player.direction;
+        if (key == KeyEvent.VK_UP) { player.velocityY = -player.speed; newDir = "UP"; } 
+        else if (key == KeyEvent.VK_DOWN) { player.velocityY = player.speed; newDir = "DOWN"; } 
+        else if (key == KeyEvent.VK_LEFT) { player.velocityX = -player.speed; newDir = "LEFT"; } 
+        else if (key == KeyEvent.VK_RIGHT) { player.velocityX = player.speed; newDir = "RIGHT"; } 
+        else if (key == KeyEvent.VK_SPACE) { shoot(); }
+        player.setDirection(newDir);
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) {
+        if (player == null) return;
+        int key = e.getKeyCode();
+        if (key == KeyEvent.VK_UP || key == KeyEvent.VK_DOWN) player.velocityY = 0;
+        if (key == KeyEvent.VK_LEFT || key == KeyEvent.VK_RIGHT) player.velocityX = 0;
+    }
+
+    @Override
+    public void keyTyped(KeyEvent e) {}
+}
