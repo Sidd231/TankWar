@@ -1,0 +1,18 @@
+# Java compiled class files
+*.class
+
+# Compilation output directories
+bin/
+out/
+
+# VS Code specific files and folders
+.vscode/project
+.vscode/tasks.json
+.vscode/launch.json
+.vscode/workspace.code-workspace
+.vscode/*.log
+
+# Operating System specific files
+Thumbs.db
+Desktop.ini
+.DS_Store
