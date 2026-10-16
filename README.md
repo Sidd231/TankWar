@@ -27,13 +27,14 @@ You start with **3 lives**. Destroying all hostile tanks in a level automaticall
 
 ## ✨ Key Features
 
-- **Smooth Grid-Aligned Movement**: Features smooth directional transitions with intelligent grid-snapping (`snapToGrid`) to prevent tanks from getting stuck on corridor corners.
+- **Grid-Aligned Brick-Unit Movement**: The tank moves in strict 1-tile increments matching the exact length of a brick (32px). Tapping an arrow key advances the whole tank by exactly 1 brick length without stopping mid-tile (between 0.1 and 1 brick length), completely preventing misalignment in tight 1-tile corridors.
+- **Visual Grid Overlay**: Tactical grid overlay lines (32x32) displaying the board matrix, togglable via the <kbd>G</kbd> key or the UI sidebar button.
 - **Dynamic Enemy AI**:
   - **Standard Bot**: Wanders randomly and locks onto the player with horizontal/vertical Line-of-Sight detection.
   - **Fast Bot (Predator)**: Sniffs out player scent trails (`ScentNode`) left across tiles to hunt the player through corridors.
   - **Heavy Bot (Juggernaut)**: Armored tank that requires 3 missile hits to eliminate.
 - **Destructible Terrain**: Missiles break through brick walls tile by tile while bouncing off indestructible steel fortifications.
-- **Interactive Heads-Up Display (HUD)**: Real-time UI panel showing current level, remaining lives, pause/resume toggle, and restart controls.
+- **Interactive Heads-Up Display (HUD)**: Real-time UI panel showing current level, remaining lives, grid overlay toggle, pause/resume toggle, and restart controls.
 - **In-Game Level Editor**: Visual 15x15 tile map editor where you can paint tiles, design custom levels, and save/load them to and from text files.
 - **A\* Pathfinding Engine**: Integrated `AStar.java` pathfinding algorithm ready for tactical enemy navigation.
 
@@ -43,11 +44,12 @@ You start with **3 lives**. Destroying all hostile tanks in a level automaticall
 
 | Action | Key / Input |
 |---|---|
-| **Move Up** | <kbd>↑</kbd> (Up Arrow) |
-| **Move Down** | <kbd>↓</kbd> (Down Arrow) |
-| **Move Left** | <kbd>←</kbd> (Left Arrow) |
-| **Move Right** | <kbd>→</kbd> (Right Arrow) |
+| **Move Up (1 Brick Step)** | <kbd>↑</kbd> (Up Arrow) |
+| **Move Down (1 Brick Step)** | <kbd>↓</kbd> (Down Arrow) |
+| **Move Left (1 Brick Step)** | <kbd>←</kbd> (Left Arrow) |
+| **Move Right (1 Brick Step)** | <kbd>→</kbd> (Right Arrow) |
 | **Shoot Missile** | <kbd>Spacebar</kbd> |
+| **Toggle Grid Overlay** | <kbd>G</kbd> or click **GRID** on UI sidebar |
 | **Pause / Resume** | Click **Pause Icon** on UI sidebar |
 | **Restart Game** | Click **Restart Icon** on UI sidebar |
 

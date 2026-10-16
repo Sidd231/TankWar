@@ -59,8 +59,14 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
     }
 
     class Player extends TankObject {
+        int targetX, targetY;
+        boolean isMoving = false;
+
         Player(Image u, Image d, Image l, Image r, int x, int y, int w, int h, int s) {
             super(u, d, l, r, x, y, w, h, s);
+            targetX = x;
+            targetY = y;
+            isMoving = false;
         }
     }
 
@@ -257,6 +263,14 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
     private UIPanel uiPanel;
     private int playerLives = 3;
     private boolean isPaused = false;
+    private boolean showGrid = true;
+
+    // --- Grid Movement Input State ---
+    private boolean upPressed = false;
+    private boolean downPressed = false;
+    private boolean leftPressed = false;
+    private boolean rightPressed = false;
+    private String latestDirection = "";
 
     Tank() {
         setPreferredSize(new Dimension(boardWidth, boardHeight));
@@ -265,28 +279,34 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
         addKeyListener(this);
 
         try {
-            player_up = new ImageIcon("../image/ptank_up.png").getImage();
-            player_down = new ImageIcon("../image/ptank_down.png").getImage();
-            player_left = new ImageIcon("../image/ptank_left.png").getImage();
-            player_right = new ImageIcon("../image/ptank_right.png").getImage();
-            bot_up = new ImageIcon("../image/btank_up.png").getImage();
-            bot_down = new ImageIcon("../image/btank_down.png").getImage();
-            bot_left = new ImageIcon("../image/btank_left.png").getImage();
-            bot_right = new ImageIcon("../image/btank_right.png").getImage();
-            bot_fast_up = new ImageIcon("../image/btank_fast_up.png").getImage();
-            bot_fast_down = new ImageIcon("../image/btank_fast_down.png").getImage();
-            bot_fast_left = new ImageIcon("../image/btank_fast_left.png").getImage();
-            bot_fast_right = new ImageIcon("../image/btank_fast_right.png").getImage();
-            bot_heavy_up = new ImageIcon("../image/btank_heavy_up.png").getImage();
-            bot_heavy_down = new ImageIcon("../image/btank_heavy_down.png").getImage();
-            bot_heavy_left = new ImageIcon("../image/btank_heavy_left.png").getImage();
-            bot_heavy_right = new ImageIcon("../image/btank_heavy_right.png").getImage();
-            brick_img = new ImageIcon("../image/brick.jpg").getImage();
-            steel_img = new ImageIcon("../image/steel.jpg").getImage();
-            missile_img = new ImageIcon("../image/missile.png").getImage();
+            player_up = App.loadImage("image/ptank_up.png");
+            player_down = App.loadImage("image/ptank_down.png");
+            player_left = App.loadImage("image/ptank_left.png");
+            player_right = App.loadImage("image/ptank_right.png");
+            bot_up = App.loadImage("image/btank_up.png");
+            bot_down = App.loadImage("image/btank_down.png");
+            bot_left = App.loadImage("image/btank_left.png");
+            bot_right = App.loadImage("image/btank_right.png");
+            bot_fast_up = App.loadImage("image/btank_fast_up.png");
+            bot_fast_down = App.loadImage("image/btank_fast_down.png");
+            bot_fast_left = App.loadImage("image/btank_fast_left.png");
+            bot_fast_right = App.loadImage("image/btank_fast_right.png");
+            bot_heavy_up = App.loadImage("image/btank_heavy_up.png");
+            bot_heavy_down = App.loadImage("image/btank_heavy_down.png");
+            bot_heavy_left = App.loadImage("image/btank_heavy_left.png");
+            bot_heavy_right = App.loadImage("image/btank_heavy_right.png");
+            brick_img = App.loadImage("image/brick.jpg");
+            steel_img = App.loadImage("image/steel.jpg");
+            missile_img = App.loadImage("image/missile.png");
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        brick = new HashSet<>();
+        steel = new HashSet<>();
+        bots = new HashSet<>();
+        missiles = new ArrayList<>();
+        scentTrail = new ArrayList<>();
 
         map = new LevelData();
         gameLoop = new Timer(10, this);
@@ -296,6 +316,7 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
     // --- NEW: Method to link to the UI Panel ---
     public void setUiPanel(UIPanel ui) {
         this.uiPanel = ui;
+        ui.setGridStatus(showGrid);
         loadLevel(currentLevel); // Load the first level after the UI is set
     }
 
@@ -306,6 +327,7 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
         }
         String[] currentMapData = map.getMap(level);
         
+        resetInputState();
         brick = new HashSet<>(); steel = new HashSet<>();
         bots = new HashSet<>(); missiles = new ArrayList<>();
         scentTrail = new ArrayList<>();
@@ -334,7 +356,7 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
     }
     
     public void gameUpdate() {
-        if (gameOver || gameWon || isPaused) return;
+        if (gameOver || gameWon || isPaused || scentTrail == null || brick == null) return;
         if (player != null) playerMove();
         updateScentTrail();
         for (Bot bot : bots) bot.update();
@@ -363,13 +385,29 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
     }
 
     public void playerMove() {
-        int nextX = player.x + player.velocityX;
-        int nextY = player.y + player.velocityY;
+        if (player == null) return;
 
-        if (!checkWallCollision(new Rectangle(nextX, nextY, player.width, player.height))) {
-            player.x = nextX;
-            player.y = nextY;
+        if (player.isMoving) {
+            int dx = player.targetX - player.x;
+            int dy = player.targetY - player.y;
+
+            if (dx != 0) {
+                int step = Math.min(Math.abs(dx), player.speed) * Integer.signum(dx);
+                player.x += step;
+            }
+            if (dy != 0) {
+                int step = Math.min(Math.abs(dy), player.speed) * Integer.signum(dy);
+                player.y += step;
+            }
+
             dropScent();
+
+            if (player.x == player.targetX && player.y == player.targetY) {
+                player.isMoving = false;
+                checkNextPlayerMove();
+            }
+        } else {
+            checkNextPlayerMove();
         }
     }
 
@@ -437,9 +475,121 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
         }
     }
 
+    public void toggleGrid() {
+        showGrid = !showGrid;
+        if (uiPanel != null) {
+            uiPanel.setGridStatus(showGrid);
+        }
+        repaint();
+    }
+
+    public boolean isShowGrid() {
+        return showGrid;
+    }
+
+    private void resetInputState() {
+        upPressed = false;
+        downPressed = false;
+        leftPressed = false;
+        rightPressed = false;
+        latestDirection = "";
+    }
+
+    private String getActiveInputDirection() {
+        if (latestDirection != null && !latestDirection.isEmpty()) {
+            if (latestDirection.equals("UP") && upPressed) return "UP";
+            if (latestDirection.equals("DOWN") && downPressed) return "DOWN";
+            if (latestDirection.equals("LEFT") && leftPressed) return "LEFT";
+            if (latestDirection.equals("RIGHT") && rightPressed) return "RIGHT";
+        }
+        if (upPressed) return "UP";
+        if (downPressed) return "DOWN";
+        if (leftPressed) return "LEFT";
+        if (rightPressed) return "RIGHT";
+        return null;
+    }
+
+    private void handlePlayerDirectionInput(String dir) {
+        if (player == null) return;
+
+        // If player is already moving between tiles:
+        if (player.isMoving) {
+            // Check if player wants to reverse back to the previous tile
+            boolean isReverse = false;
+            int revX = player.targetX;
+            int revY = player.targetY;
+
+            if (player.direction.equals("UP") && dir.equals("DOWN")) {
+                revY += tileSize;
+                isReverse = true;
+            } else if (player.direction.equals("DOWN") && dir.equals("UP")) {
+                revY -= tileSize;
+                isReverse = true;
+            } else if (player.direction.equals("LEFT") && dir.equals("RIGHT")) {
+                revX += tileSize;
+                isReverse = true;
+            } else if (player.direction.equals("RIGHT") && dir.equals("LEFT")) {
+                revX -= tileSize;
+                isReverse = true;
+            }
+
+            if (isReverse) {
+                player.targetX = revX;
+                player.targetY = revY;
+                player.setDirection(dir);
+            }
+            return;
+        }
+
+        // Tank is stopped at a grid cell
+        player.setDirection(dir);
+        int stepX = 0, stepY = 0;
+        switch (dir) {
+            case "UP": stepY = -tileSize; break;
+            case "DOWN": stepY = tileSize; break;
+            case "LEFT": stepX = -tileSize; break;
+            case "RIGHT": stepX = tileSize; break;
+        }
+
+        int nextX = player.x + stepX;
+        int nextY = player.y + stepY;
+
+        if (!checkWallCollision(new Rectangle(nextX, nextY, player.width, player.height))) {
+            player.targetX = nextX;
+            player.targetY = nextY;
+            player.isMoving = true;
+        }
+    }
+
+    private void checkNextPlayerMove() {
+        if (player == null || player.isMoving) return;
+
+        String dir = getActiveInputDirection();
+        if (dir == null) return;
+
+        player.setDirection(dir);
+        int stepX = 0, stepY = 0;
+        switch (dir) {
+            case "UP": stepY = -tileSize; break;
+            case "DOWN": stepY = tileSize; break;
+            case "LEFT": stepX = -tileSize; break;
+            case "RIGHT": stepX = tileSize; break;
+        }
+
+        int nextX = player.x + stepX;
+        int nextY = player.y + stepY;
+
+        if (!checkWallCollision(new Rectangle(nextX, nextY, player.width, player.height))) {
+            player.targetX = nextX;
+            player.targetY = nextY;
+            player.isMoving = true;
+        }
+    }
+
     public void resetGame() {
         currentLevel = 1;
         playerLives = 3;
+        resetInputState();
         loadLevel(currentLevel);
         if (isPaused) {
             togglePause(); // Unpause the game on reset
@@ -452,11 +602,21 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
     }
 
     public void draw(Graphics g) {
-        if (player != null) g.drawImage(player.image, player.x, player.y, player.width, player.height, this);
-        for (GameObject b : brick) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
-        for (Bot b : bots) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
-        for (GameObject s : steel) g.drawImage(s.image, s.x, s.y, s.width, s.height, this);
-        for (Missile m : missiles) g.drawImage(m.image, m.x, m.y, m.width, m.height, this);
+        if (showGrid) {
+            g.setColor(new Color(255, 255, 255, 30));
+            for (int x = 0; x <= boardWidth; x += tileSize) {
+                g.drawLine(x, 0, x, boardHeight);
+            }
+            for (int y = 0; y <= boardHeight; y += tileSize) {
+                g.drawLine(0, y, boardWidth, y);
+            }
+        }
+
+        if (player != null && player.image != null) g.drawImage(player.image, player.x, player.y, player.width, player.height, this);
+        if (brick != null) for (GameObject b : brick) if (b != null && b.image != null) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
+        if (bots != null) for (Bot b : bots) if (b != null && b.image != null) g.drawImage(b.image, b.x, b.y, b.width, b.height, this);
+        if (steel != null) for (GameObject s : steel) if (s != null && s.image != null) g.drawImage(s.image, s.x, s.y, s.width, s.height, this);
+        if (missiles != null) for (Missile m : missiles) if (m != null && m.image != null) g.drawImage(m.image, m.x, m.y, m.width, m.height, this);
 
         if (gameOver) {
             g.setColor(Color.RED); g.setFont(new Font("Arial", Font.BOLD, 50));
@@ -469,7 +629,6 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
 
     @Override public void actionPerformed(ActionEvent e) { gameUpdate(); repaint(); }
 
-    
     @Override
     public void keyPressed(KeyEvent e) {
         if (player == null || isPaused) return;
@@ -480,23 +639,37 @@ public class Tank extends JPanel implements ActionListener, KeyListener {
             return;
         }
 
-        
-        if ((key == KeyEvent.VK_UP || key == KeyEvent.VK_DOWN) && player.velocityX != 0) player.snapToGrid();
-        if ((key == KeyEvent.VK_LEFT || key == KeyEvent.VK_RIGHT) && player.velocityY != 0) player.snapToGrid();
+        if (key == KeyEvent.VK_G) {
+            toggleGrid();
+            return;
+        }
 
-        if (key == KeyEvent.VK_UP) { player.setDirection("UP"); player.velocityY = -player.speed; player.velocityX = 0; } 
-        else if (key == KeyEvent.VK_DOWN) { player.setDirection("DOWN"); player.velocityY = player.speed; player.velocityX = 0; } 
-        else if (key == KeyEvent.VK_LEFT) { player.setDirection("LEFT"); player.velocityX = -player.speed; player.velocityY = 0; } 
-        else if (key == KeyEvent.VK_RIGHT) { player.setDirection("RIGHT"); player.velocityX = player.speed; player.velocityY = 0; }
+        if (key == KeyEvent.VK_UP) {
+            upPressed = true;
+            latestDirection = "UP";
+            handlePlayerDirectionInput("UP");
+        } else if (key == KeyEvent.VK_DOWN) {
+            downPressed = true;
+            latestDirection = "DOWN";
+            handlePlayerDirectionInput("DOWN");
+        } else if (key == KeyEvent.VK_LEFT) {
+            leftPressed = true;
+            latestDirection = "LEFT";
+            handlePlayerDirectionInput("LEFT");
+        } else if (key == KeyEvent.VK_RIGHT) {
+            rightPressed = true;
+            latestDirection = "RIGHT";
+            handlePlayerDirectionInput("RIGHT");
+        }
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
-        if (player == null) return;
         int key = e.getKeyCode();
-        
-        if ((key == KeyEvent.VK_UP || key == KeyEvent.VK_DOWN) && player.velocityY != 0) player.velocityY = 0;
-        if ((key == KeyEvent.VK_LEFT || key == KeyEvent.VK_RIGHT) && player.velocityX != 0) player.velocityX = 0;
+        if (key == KeyEvent.VK_UP) upPressed = false;
+        else if (key == KeyEvent.VK_DOWN) downPressed = false;
+        else if (key == KeyEvent.VK_LEFT) leftPressed = false;
+        else if (key == KeyEvent.VK_RIGHT) rightPressed = false;
     }
 
     @Override public void keyTyped(KeyEvent e) {}

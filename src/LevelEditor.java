@@ -29,12 +29,12 @@ public class LevelEditor extends JPanel {
         toolIcons = new HashMap<>();
         // Load small, 32x32 icons for the editor grid
         try {
-            toolIcons.put('1', new ImageIcon("../image/brick.jpg"));
-            toolIcons.put('9', new ImageIcon("../image/steel.jpg"));
-            toolIcons.put('7', new ImageIcon("../image/ptank_up.png"));
-            toolIcons.put('5', new ImageIcon("../image/btank_up.png"));
-            toolIcons.put('6', new ImageIcon("../image/btank_fast_up.png"));
-            toolIcons.put('8', new ImageIcon("../image/btank_heavy_up.png"));
+            toolIcons.put('1', App.loadIcon("image/brick.jpg"));
+            toolIcons.put('9', App.loadIcon("image/steel.jpg"));
+            toolIcons.put('7', App.loadIcon("image/ptank_up.png"));
+            toolIcons.put('5', App.loadIcon("image/btank_up.png"));
+            toolIcons.put('6', App.loadIcon("image/btank_fast_up.png"));
+            toolIcons.put('8', App.loadIcon("image/btank_heavy_up.png"));
             toolIcons.put('0', null); // Represents empty space
         } catch (Exception e) {
             System.err.println("Error loading tool icons for editor.");

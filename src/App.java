@@ -17,6 +17,31 @@ public class App {
         javax.swing.SwingUtilities.invokeLater(() -> new App().createAndShowGUI());
     }
 
+    public static java.awt.Image loadImage(String relativePath) {
+        String cleanPath = relativePath.replace("\\", "/");
+        if (cleanPath.startsWith("../")) {
+            cleanPath = cleanPath.substring(3);
+        }
+        java.io.File f = new java.io.File(cleanPath);
+        if (f.exists()) {
+            return new javax.swing.ImageIcon(f.getAbsolutePath()).getImage();
+        }
+        f = new java.io.File("../" + cleanPath);
+        if (f.exists()) {
+            return new javax.swing.ImageIcon(f.getAbsolutePath()).getImage();
+        }
+        java.net.URL url = App.class.getResource("/" + cleanPath);
+        if (url != null) {
+            return new javax.swing.ImageIcon(url).getImage();
+        }
+        return new javax.swing.ImageIcon(relativePath).getImage();
+    }
+
+    public static javax.swing.ImageIcon loadIcon(String relativePath) {
+        java.awt.Image img = loadImage(relativePath);
+        return img != null ? new javax.swing.ImageIcon(img) : new javax.swing.ImageIcon(relativePath);
+    }
+
     private void createAndShowGUI() {
         frame = new JFrame("TANK");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
