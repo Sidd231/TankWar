@@ -158,3 +158,7 @@ Want to design your own maps?
 For a comprehensive explanation of how every subsystem works (Player movement, Bot AI state machine, Scent trails, Collision resolution, etc.) and where specific responsibilities live in the source code, see the complete guide:
 
 👉 **[DOCUMENTATION.md](file:///d:/csjava/2D%20Game/tankwar/DOCUMENTATION.md)**
+
+For the full Reinforcement Learning multi-bot training architecture and differentiated behavioral rules roadmap:
+
+👉 **[RL_TRAINING_ROADMAP.md](file:///d:/csjava/2D%20Game/tankwar/RL_TRAINING_ROADMAP.md)**
