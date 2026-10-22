@@ -87,16 +87,27 @@ The application is structured into a modular Swing/AWT desktop application.
 The player tank is an interactive entity controlled by the user via the keyboard, featuring directional sprites, grid-lane alignment, scent dropping, missile firing, and life management.
 
 ```
- GameObject (x, y, width, height, image, getBounds())
-     └── TankObject (speed, velocityX, velocityY, direction, 4 sprites, snapToGrid(), setDirection())
-             └── Player (Specific player constructor and attributes)
+Drawable, Collidable
+     └── GameObject (x, y, width, height, image, getBounds(), draw())
+             └── Wall (destructible flag, takeHit())
+             └── Missile (direction, velocity, fromPlayer)
+             └── TankObject (speed, velocity, direction, sprites, snapToGrid())
+                     ├── Player (tile movement, input buffer, scent emission)
+                     └── Bot (state machine, line-of-sight, shooting)
+                             ├── BotFast (scent tracker)
+                             └── BotHeavy (multi-hit armor)
 ```
 
 ### 2.1 Code Elements Involved
-- **Classes**:
-  - `Tank.GameObject` ([`Tank.java:L12-L17`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java#L12-L17))
-  - `Tank.TankObject` ([`Tank.java:L19-L59`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java#L19-L59))
-  - `Tank.Player` ([`Tank.java:L61-L65`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java#L61-L65))
+- **Classes & Interfaces**:
+  - `Drawable` ([`Drawable.java`](file:///d:/csjava/2D%20Game/tankwar/src/Drawable.java))
+  - `Collidable` ([`Collidable.java`](file:///d:/csjava/2D%20Game/tankwar/src/Collidable.java))
+  - `Damageable` ([`Damageable.java`](file:///d:/csjava/2D%20Game/tankwar/src/Damageable.java))
+  - `GameObject` ([`GameObject.java`](file:///d:/csjava/2D%20Game/tankwar/src/GameObject.java))
+  - `TankObject` ([`TankObject.java`](file:///d:/csjava/2D%20Game/tankwar/src/TankObject.java))
+  - `Player` ([`Player.java`](file:///d:/csjava/2D%20Game/tankwar/src/Player.java))
+  - `GameContext` ([`GameContext.java`](file:///d:/csjava/2D%20Game/tankwar/src/GameContext.java))
+  - `GameEventListener` ([`GameEventListener.java`](file:///d:/csjava/2D%20Game/tankwar/src/GameEventListener.java))
 - **Fields in `Tank`**:
   - `Player player`: Holds the current player instance.
   - `int playerLives = 3`: Player's remaining lives.
@@ -469,24 +480,25 @@ Use this quick reference table to find the exact file and lines responsible for 
 | **Application Launch & Window Setup** | [`src/App.java`](file:///d:/csjava/2D%20Game/tankwar/src/App.java) | `App.createAndShowGUI()` | Lines 20–57 |
 | **Screen Switching (CardLayout)** | [`src/App.java`](file:///d:/csjava/2D%20Game/tankwar/src/App.java) | `showGameScreen()`, `showLevelEditor()`, `showHomeScreen()` | Lines 60–74 |
 | **Start Screen & Menu Buttons** | [`src/HomeScreen.java`](file:///d:/csjava/2D%20Game/tankwar/src/HomeScreen.java) | `HomeScreen` constructor | Lines 14–47 |
-| **Game Tick Loop (Timer)** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `gameLoop`, `actionPerformed()`, `gameUpdate()` | Lines 292, 336–344, 470 |
-| **Player Base Class & Sprites** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `Tank.Player`, `Tank.TankObject` | Lines 19–65 |
-| **Player Keyboard Controls** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `keyPressed()`, `keyReleased()` | Lines 474–501 |
-| **Player Grid Alignment** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `TankObject.snapToGrid()` | Lines 48–58 |
-| **Player Movement & Scent Trigger** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `playerMove()` | Lines 365–374 |
-| **Player Missile Firing** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `shoot()` | Lines 423–426 |
-| **Player Lives & Respawn Handling** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `checkCollisions()` | Lines 388–400 |
-| **Base Bot AI (Wander & Hunt)** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `Tank.Bot.update()`, `moveTowards()` | Lines 84–130 |
-| **Line-of-Sight Calculation** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `Tank.Bot.hasLineOfSight()` | Lines 145–155 |
-| **Bot Shooting Mechanic** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `Tank.Bot.shoot()` | Line 157 |
-| **Fast Bot (Scent Stalker AI)** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `Tank.BotFast.update()`, `findStrongestAdjacentScent()` | Lines 161–199 |
-| **Heavy Bot (3-HP Multi-Hit)** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `Tank.BotHeavy.takeHit()` | Lines 201–214 |
-| **Scent Trail Creation & Decay** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `dropScent()`, `updateScentTrail()` | Lines 346–363 |
-| **Missile Lifecycle & Movement** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `Tank.Missile`, `moveMissiles()` | Lines 216–231, 376 |
-| **Collision Resolution (Bricks/Steel/Hits)** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `checkCollisions()` | Lines 378–413 |
-| **Level Maps (1 through 5)** | [`src/LevelData.java`](file:///d:/csjava/2D%20Game/tankwar/src/LevelData.java) | `maps` array, `getMap()` | Lines 3–102 |
-| **Level Loading & Map Parsing** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `loadLevel()` | Lines 302–334 |
-| **Pause & Game Reset Logic** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `togglePause()`, `resetGame()` | Lines 429–447 |
-| **HUD Panel & Button Clicks** | [`src/UIPanel.java`](file:///d:/csjava/2D%20Game/tankwar/src/UIPanel.java) | `UIPanel` constructor, mouse listeners | Lines 24–97 |
-| **Level Editor (Grid, Tools, Save/Load)** | [`src/LevelEditor.java`](file:///d:/csjava/2D%20Game/tankwar/src/LevelEditor.java) | `paintTile()`, `saveLevel()`, `loadLevel()` | Lines 104–146 |
-| **A* Pathfinding Search** | [`src/AStar.java`](file:///d:/csjava/2D%20Game/tankwar/src/AStar.java) | `AStar.findPath()`, `retracePath()` | Lines 37–104 |
+| **Game Tick Loop (Timer)** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `gameLoop`, `actionPerformed()`, `gameUpdate()` | Main Panel Loop |
+| **Player Base Class & Sprites** | [`src/Player.java`](file:///d:/csjava/2D%20Game/tankwar/src/Player.java) | `Player`, `TankObject` | Player Entity Class |
+| **Player Keyboard Controls** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `keyPressed()`, `keyReleased()` | Input Listener |
+| **Player Grid Alignment** | [`src/TankObject.java`](file:///d:/csjava/2D%20Game/tankwar/src/TankObject.java) | `TankObject.snapToGrid()` | Grid Snapping |
+| **Player Movement & Scent Trigger** | [`src/Player.java`](file:///d:/csjava/2D%20Game/tankwar/src/Player.java) | `update()`, `handleDirectionInput()` | Encapsulated Movement |
+| **Player Missile Firing** | [`src/Player.java`](file:///d:/csjava/2D%20Game/tankwar/src/Player.java) | `shoot()` | Projectile Spawning |
+| **Player Lives & Respawn Handling** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `checkCollisions()` | Collision Resolution |
+| **Base Bot AI (Wander & Hunt)** | [`src/Bot.java`](file:///d:/csjava/2D%20Game/tankwar/src/Bot.java) | `Bot.update()`, `moveTowards()` | Bot AI State Machine |
+| **Line-of-Sight Calculation** | [`src/Bot.java`](file:///d:/csjava/2D%20Game/tankwar/src/Bot.java) | `Bot.hasLineOfSight()` | Ray/Sightline Check |
+| **Bot Shooting Mechanic** | [`src/Bot.java`](file:///d:/csjava/2D%20Game/tankwar/src/Bot.java) | `Bot.shoot()` | AI Weapon Trigger |
+| **Fast Bot (Scent Stalker AI)** | [`src/BotFast.java`](file:///d:/csjava/2D%20Game/tankwar/src/BotFast.java) | `BotFast.update()`, `findStrongestAdjacentScent()` | Scent Hound AI |
+| **Heavy Bot (3-HP Multi-Hit)** | [`src/BotHeavy.java`](file:///d:/csjava/2D%20Game/tankwar/src/BotHeavy.java) | `BotHeavy.takeHit()` | Armored Health Logic |
+| **Scent Trail Creation & Decay** | [`src/ScentNode.java`](file:///d:/csjava/2D%20Game/tankwar/src/ScentNode.java) | `ScentNode.decay()`, `Tank.updateScentTrail()` | Scent Entity & Decay |
+| **Missile Lifecycle & Movement** | [`src/Missile.java`](file:///d:/csjava/2D%20Game/tankwar/src/Missile.java) | `Missile`, `move()` | Projectile Entity |
+| **Collision Resolution (Bricks/Steel/Hits)** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `checkCollisions()` | Collision Engine |
+| **Terrain Tiles (Destructible/Steel)** | [`src/Wall.java`](file:///d:/csjava/2D%20Game/tankwar/src/Wall.java) | `Wall`, `takeHit()` | Terrain Entity |
+| **Level Maps (1 through 5)** | [`src/LevelData.java`](file:///d:/csjava/2D%20Game/tankwar/src/LevelData.java) | `maps` array, `getMap()` | Map Matrices |
+| **Level Loading & Map Parsing** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `loadLevel()` | Level Builder |
+| **Pause & Game Reset Logic** | [`src/Tank.java`](file:///d:/csjava/2D%20Game/tankwar/src/Tank.java) | `togglePause()`, `resetGame()` | State Machine & Loop |
+| **HUD Panel & Button Clicks** | [`src/UIPanel.java`](file:///d:/csjava/2D%20Game/tankwar/src/UIPanel.java) | `UIPanel` (implements `GameEventListener`) | Observer HUD View |
+| **Level Editor (Grid, Tools, Save/Load)** | [`src/LevelEditor.java`](file:///d:/csjava/2D%20Game/tankwar/src/LevelEditor.java) | `paintTile()`, `saveLevel()`, `loadLevel()` | Visual Map Tool |
+| **A* Pathfinding Search** | [`src/AStar.java`](file:///d:/csjava/2D%20Game/tankwar/src/AStar.java) | `AStar.findPath()`, `retracePath()` | Graph Algorithm |

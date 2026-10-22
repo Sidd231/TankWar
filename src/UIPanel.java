@@ -3,24 +3,23 @@ import java.awt.event.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 
-public class UIPanel extends JPanel {
+public class UIPanel extends JPanel implements GameEventListener {
     // Labels to display information
     private JLabel levelValueLabel;
     private JLabel livesValueLabel;
     private JLabel gridValueLabel;
 
-    // --- UPDATED: Using JLabels for image-based buttons ---
+    // Clickable image-based action labels
     private JLabel pauseLabel;
     private JLabel resetLabel;
 
-    // A reference to the main game panel to send commands to it
+    // Reference to the main game panel
     private Tank gamePanel;
-    
+
     private Image backgroundImage;
-    // --- NEW: Images for the icon buttons ---
     private Image pauseIcon;
     private Image restartIcon;
-    private Image resumeIcon; // Optional: an icon for the resume state
+    private Image resumeIcon;
 
     public UIPanel(Tank gamePanel) {
         this.gamePanel = gamePanel;
@@ -47,7 +46,7 @@ public class UIPanel extends JPanel {
 
         // Set up the panel's appearance
         setPreferredSize(new Dimension(150, 480));
-        setOpaque(false); 
+        setOpaque(false);
         setLayout(new GridLayout(8, 1, 5, 8));
         setBorder(new EmptyBorder(10, 10, 10, 10));
 
@@ -90,13 +89,15 @@ public class UIPanel extends JPanel {
         gridValueLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                gamePanel.toggleGrid();
-                gamePanel.requestFocusInWindow(); // Return focus to the game!
+                if (gamePanel != null) {
+                    gamePanel.toggleGrid();
+                    gamePanel.requestFocusInWindow();
+                }
             }
         });
         add(gridValueLabel);
 
-        // --- UPDATED: Creating clickable image labels ---
+        // --- Button Labels ---
         if (pauseIcon != null) {
             pauseLabel = new JLabel(new ImageIcon(pauseIcon), SwingConstants.CENTER);
         } else {
@@ -116,27 +117,30 @@ public class UIPanel extends JPanel {
         pauseLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
         resetLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
 
-        // Add listeners to the labels
         pauseLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                gamePanel.togglePause();
-                gamePanel.requestFocusInWindow(); // Return focus to the game!
+                if (gamePanel != null) {
+                    gamePanel.togglePause();
+                    gamePanel.requestFocusInWindow();
+                }
             }
         });
-        
+
         resetLabel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                gamePanel.resetGame();
-                gamePanel.requestFocusInWindow(); // Return focus to the game!
+                if (gamePanel != null) {
+                    gamePanel.resetGame();
+                    gamePanel.requestFocusInWindow();
+                }
             }
         });
-        
+
         add(pauseLabel);
         add(resetLabel);
     }
-    
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -148,13 +152,44 @@ public class UIPanel extends JPanel {
         }
     }
 
-    // --- Public methods to allow the game to update the UI ---
+    // --- GameEventListener Implementation ---
+    @Override
+    public void onLivesChanged(int lives) {
+        setLives(lives);
+    }
+
+    @Override
+    public void onLevelChanged(int level) {
+        setLevel(level);
+    }
+
+    @Override
+    public void onGridToggled(boolean showGrid) {
+        setGridStatus(showGrid);
+    }
+
+    @Override
+    public void onPauseToggled(boolean isPaused) {
+        setPauseIcon(isPaused);
+    }
+
+    @Override
+    public void onGameOver() {}
+
+    @Override
+    public void onGameWon() {}
+
+    // --- Public API methods ---
     public void setLevel(int level) {
-        levelValueLabel.setText(String.valueOf(level));
+        if (levelValueLabel != null) {
+            levelValueLabel.setText(String.valueOf(level));
+        }
     }
 
     public void setLives(int lives) {
-        livesValueLabel.setText(String.valueOf(lives));
+        if (livesValueLabel != null) {
+            livesValueLabel.setText(String.valueOf(lives));
+        }
     }
 
     public void setGridStatus(boolean isGridOn) {
@@ -164,8 +199,8 @@ public class UIPanel extends JPanel {
         }
     }
 
-    // --- UPDATED: This method now changes the icon instead of text ---
     public void setPauseIcon(boolean isPaused) {
+        if (pauseLabel == null) return;
         if (isPaused) {
             if (resumeIcon != null) {
                 pauseLabel.setIcon(new ImageIcon(resumeIcon));
